@@ -10,7 +10,7 @@ def test(request):
 
 def routes(request):
     dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table('TestDB')
+    table = dynamodb.Table('Routes')
     response = table.scan(Select='ALL_ATTRIBUTES')
     json_data = json.dumps(response["Items"])
     return HttpResponse(json_data, content_type="application/json")
