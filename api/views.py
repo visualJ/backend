@@ -31,18 +31,20 @@ def routes(request):
             if value is not None:
                 expression_list.append(operator_dict[op](db_parameter_name, type_convert(value)))
 
-        expression = None
-        for expression_part in expression_list:
-            if expression is None:
-                expression = expression_part
-            else:
-                expression &= expression_part
-
         dynamodb = boto3.resource('dynamodb')
         table = dynamodb.Table('Routes')
-        response = table.scan(
-            FilterExpression=expression
-        )
+        if not expression_list:
+            response = table.scan(Select='ALL_ATTRIBUTES')
+        else:
+            expression = None
+            for expression_part in expression_list:
+                if expression is None:
+                    expression = expression_part
+                else:
+                    expression &= expression_part
+            response = table.scan(
+                FilterExpression=expression
+            )
         json_data = json.dumps(response["Items"])
         return HttpResponse(json_data, content_type="application/json")
     elif request.method == 'PUT':
