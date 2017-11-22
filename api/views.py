@@ -1,6 +1,7 @@
 from django.http import HttpResponse
 import simplejson as json
 import boto3
+from boto3.dynamodb.conditions import Key, Attr
 from rest_framework.decorators import api_view
 
 
@@ -12,9 +13,36 @@ def test(request):
 @api_view(['GET', 'PUT'])
 def routes(request):
     if request.method == 'GET':
+        parameter_list = [("startCountry", "startCountry", "eg", str),
+                          ("endCountry", "endCountry", "eg", str),
+                          ("distance", "minDistance", "gt", int),
+                          ("distance", "maxDistance", "lt", int),
+                          ("duration", "minDuration", "gt", int),
+                          ("duration", "maxDuration", "lt", int),
+                          ("name", "name", "eg", str)]
+
+        operator_dict = {"eg": lambda parameter_name, parameter_value: Key(parameter_name).eq(parameter_value),
+                         "lt": lambda parameter_name, parameter_value: Key(parameter_name).lt(parameter_value),
+                         "gt": lambda parameter_name, parameter_value: Key(parameter_name).gt(parameter_value)}
+        expression_list = []
+
+        for db_parameter_name, parameter_name, op, type_convert in parameter_list:
+            value = request.GET.get(parameter_name)
+            if value is not None:
+                expression_list.append(operator_dict[op](db_parameter_name, type_convert(value)))
+
+        expression = None
+        for expression_part in expression_list:
+            if expression is None:
+                expression = expression_part
+            else:
+                expression &= expression_part
+
         dynamodb = boto3.resource('dynamodb')
         table = dynamodb.Table('Routes')
-        response = table.scan(Select='ALL_ATTRIBUTES')
+        response = table.scan(
+            FilterExpression=expression
+        )
         json_data = json.dumps(response["Items"])
         return HttpResponse(json_data, content_type="application/json")
     elif request.method == 'PUT':
