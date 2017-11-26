@@ -19,11 +19,15 @@ def routes(request):
                           ("distance", "maxDistance", "lt", int),
                           ("duration", "minDuration", "gt", int),
                           ("duration", "maxDuration", "lt", int),
+                          ("ratingAvg", "minRating", "gte", int),
+                          ("ratingAvg", "maxRating", "lte", int),
                           ("name", "name", "eg", str)]
 
         operator_dict = {"eg": lambda parameter_name, parameter_value: Key(parameter_name).eq(parameter_value),
                          "lt": lambda parameter_name, parameter_value: Key(parameter_name).lt(parameter_value),
-                         "gt": lambda parameter_name, parameter_value: Key(parameter_name).gt(parameter_value)}
+                         "gt": lambda parameter_name, parameter_value: Key(parameter_name).gt(parameter_value),
+                         "lte": lambda parameter_name, parameter_value: Key(parameter_name).lte(parameter_value),
+                         "gte": lambda parameter_name, parameter_value: Key(parameter_name).gte(parameter_value)}
         expression_list = []
 
         for db_parameter_name, parameter_name, op, type_convert in parameter_list:
