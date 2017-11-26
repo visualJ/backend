@@ -22,6 +22,8 @@ def routes(request):
                           ("duration", "maxDuration", "lt", int),
                           ("ratingAvg", "minRating", "gte", int),
                           ("ratingAvg", "maxRating", "lte", int),
+                          ("difficultyAvg", "minDifficulty", "gte", int),
+                          ("difficultyAvg", "maxDifficulty", "lte", int),
                           ("name", "name", "eg", str)]
 
         operator_dict = {"eg": lambda n, v: Key(n).eq(v),
