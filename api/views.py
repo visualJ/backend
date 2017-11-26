@@ -1,7 +1,8 @@
-from django.http import HttpResponse
+from django.http import HttpResponse, Http404, HttpResponseBadRequest
 import simplejson as json
 import boto3
 from boto3.dynamodb.conditions import Key, Attr
+from rest_framework import status
 from rest_framework.decorators import api_view
 
 
@@ -23,11 +24,11 @@ def routes(request):
                           ("ratingAvg", "maxRating", "lte", int),
                           ("name", "name", "eg", str)]
 
-        operator_dict = {"eg": lambda parameter_name, parameter_value: Key(parameter_name).eq(parameter_value),
-                         "lt": lambda parameter_name, parameter_value: Key(parameter_name).lt(parameter_value),
-                         "gt": lambda parameter_name, parameter_value: Key(parameter_name).gt(parameter_value),
-                         "lte": lambda parameter_name, parameter_value: Key(parameter_name).lte(parameter_value),
-                         "gte": lambda parameter_name, parameter_value: Key(parameter_name).gte(parameter_value)}
+        operator_dict = {"eg": lambda n, v: Key(n).eq(v),
+                         "lt": lambda n, v: Key(n).lt(v),
+                         "gt": lambda n, v: Key(n).gt(v),
+                         "lte": lambda n, v: Key(n).lte(v),
+                         "gte": lambda n, v: Key(n).gte(v)}
         expression_list = []
 
         for db_parameter_name, parameter_name, op, type_convert in parameter_list:
@@ -61,7 +62,7 @@ def routes(request):
 
 
 @api_view(['GET', 'DELETE'])
-def route_id(request, route_id):
+def route_by_id(request, route_id):
     if request.method == 'GET':
         dynamodb = boto3.resource('dynamodb')
         table = dynamodb.Table('Routes')
@@ -82,3 +83,21 @@ def route_id(request, route_id):
         )
         response_dict = {"Success": True}
         return HttpResponse(json.dumps(response_dict), content_type="application/json")
+
+
+@api_view(['GET'])
+def route_detail(request):
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table('route_detail')
+    if 'id' not in request.GET:
+        return HttpResponseBadRequest("Missing id query parameter")
+    route_id = request.GET.get('id')
+    response = table.get_item(
+        Key={
+            'id': int(route_id)
+        }
+    )
+    if 'Item' not in response:
+        raise Http404()
+    item = response["Item"]
+    return HttpResponse(json.dumps(item), content_type="application/json")
