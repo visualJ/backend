@@ -1,8 +1,8 @@
 from django.http import HttpResponse, Http404, HttpResponseBadRequest
 import simplejson as json
 import boto3
-from boto3.dynamodb.conditions import Key, Attr
-from rest_framework import status
+import hashlib
+from boto3.dynamodb.conditions import Key
 from rest_framework.decorators import api_view
 
 
@@ -60,6 +60,33 @@ def routes(request):
         table = dynamodb.Table('Routes')
         table.put_item(Item=data)
         response_dict = {"Success": True}
+        return HttpResponse(json.dumps(response_dict), content_type="application/json")
+
+
+@api_view(['POST'])
+def add_rating(request):
+    if request.method == 'POST':
+        data = request.body
+        story = json.loads(data)
+        route_id = request.GET.get('routeId')
+        dynamodb = boto3.resource('dynamodb')
+        table = dynamodb.Table('Routes')
+        # generate new unique ratings_id
+        hash_id = int(hashlib.sha1((json.dumps(data).encode())).hexdigest(), 16)
+        ratings_id = hash_id % 2 ** 31
+        story["id"] = ratings_id
+
+        result = table.update_item(
+            Key={
+                'id': int(route_id)
+            },
+            UpdateExpression="SET ratings = list_append(ratings, :i)",
+            ExpressionAttributeValues={
+                ':i': [story],
+            },
+            ReturnValues="UPDATED_NEW"
+        )
+        response_dict = {"id": ratings_id}
         return HttpResponse(json.dumps(response_dict), content_type="application/json")
 
 
