@@ -11,6 +11,15 @@ def test(request):
     return HttpResponse("{\"message\":\"test\"}", content_type="application/json")
 
 
+@api_view(['GET', 'POST'])
+def media(request):
+    id = request.GET.get("id")
+    s3 = boto3.client('s3')
+    obj = s3.get_object(Bucket="cc1-media", Key=id)
+    body = obj["Body"].read()
+    return HttpResponse(body)
+
+
 @api_view(['GET', 'PUT'])
 def routes(request):
     if request.method == 'GET':
