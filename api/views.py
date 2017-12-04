@@ -16,10 +16,10 @@ def routes(request):
     if request.method == 'GET':
         parameter_list = [("startCountry", "startCountry", "eg", str),
                           ("endCountry", "endCountry", "eg", str),
-                          ("distance", "minDistance", "gt", int),
-                          ("distance", "maxDistance", "lt", int),
-                          ("duration", "minDuration", "gt", int),
-                          ("duration", "maxDuration", "lt", int),
+                          ("distance", "minDistance", "gte", int),
+                          ("distance", "maxDistance", "lte", int),
+                          ("duration", "minDuration", "gte", int),
+                          ("duration", "maxDuration", "lte", int),
                           ("ratingAvg", "minRating", "gte", int),
                           ("ratingAvg", "maxRating", "lte", int),
                           ("difficultyAvg", "minDifficulty", "gte", int),
@@ -67,14 +67,14 @@ def routes(request):
 def add_rating(request):
     if request.method == 'POST':
         data = request.body
-        story = json.loads(data)
+        ratings_id = json.loads(data)
         route_id = request.GET.get('routeId')
         dynamodb = boto3.resource('dynamodb')
         table = dynamodb.Table('Routes')
         # generate new unique ratings_id
         hash_id = int(hashlib.sha1((json.dumps(data).encode())).hexdigest(), 16)
         ratings_id = hash_id % 2 ** 31
-        story["id"] = ratings_id
+        ratings_id["id"] = ratings_id
 
         result = table.update_item(
             Key={
@@ -82,7 +82,7 @@ def add_rating(request):
             },
             UpdateExpression="SET ratings = list_append(ratings, :i)",
             ExpressionAttributeValues={
-                ':i': [story],
+                ':i': [ratings_id],
             },
             ReturnValues="UPDATED_NEW"
         )
@@ -117,7 +117,7 @@ def route_by_id(request, route_id):
 @api_view(['GET'])
 def route_detail(request):
     dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table('route_detail')
+    table = dynamodb.Table('Routes')
     if 'id' not in request.GET:
         return HttpResponseBadRequest("Missing id query parameter")
     route_id = request.GET.get('id')
