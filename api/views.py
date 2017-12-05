@@ -1,3 +1,5 @@
+from random import randint
+
 from django.http import HttpResponse, Http404, HttpResponseBadRequest
 import simplejson as json
 import boto3
@@ -13,11 +15,19 @@ def test(request):
 
 @api_view(['GET', 'POST'])
 def media(request):
-    id = request.GET.get("id")
     s3 = boto3.client('s3')
-    obj = s3.get_object(Bucket="cc1-media", Key=id)
-    body = obj["Body"].read()
-    return HttpResponse(body)
+    if request.method == 'GET':
+        media_id = request.GET.get("id")
+        obj = s3.get_object(Bucket="cc1-media", Key=media_id)
+        body = obj["Body"].read()
+        return HttpResponse(body)
+    elif request.method == 'POST':
+        media_file = request.data["media_file"]
+        print(media_file.name)
+        media_id = str(randint(0, 9223372036854775807)) + media_file.name
+        s3.put_object(Bucket="cc1-media", Key=media_id, Body=media_file.read())
+        response_dict = {"Success": True, "id": media_id, "Content-Type": media_file.content_type}
+        return HttpResponse(json.dumps(response_dict), content_type="application/json")
 
 
 @api_view(['GET', 'PUT'])
