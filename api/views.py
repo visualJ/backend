@@ -23,29 +23,24 @@ def media(request):
 @api_view(['GET', 'PUT'])
 def routes(request):
     if request.method == 'GET':
-        parameter_list = [("startCountry", "startCountry", "eg", str),
-                          ("endCountry", "endCountry", "eg", str),
-                          ("distance", "minDistance", "gte", int),
-                          ("distance", "maxDistance", "lte", int),
-                          ("duration", "minDuration", "gte", int),
-                          ("duration", "maxDuration", "lte", int),
-                          ("ratingAvg", "minRating", "gte", int),
-                          ("ratingAvg", "maxRating", "lte", int),
-                          ("difficultyAvg", "minDifficulty", "gte", int),
-                          ("difficultyAvg", "maxDifficulty", "lte", int),
-                          ("name", "name", "eg", str)]
+        parameter_list = [("startCountry", "startCountry", Key.eq, str),
+                          ("endCountry", "endCountry", Key.eq, str),
+                          ("distance", "minDistance", Key.gte, int),
+                          ("distance", "maxDistance", Key.lte, int),
+                          ("duration", "minDuration", Key.gte, int),
+                          ("duration", "maxDuration", Key.lte, int),
+                          ("ratingAvg", "minRating", Key.gte, int),
+                          ("ratingAvg", "maxRating", Key.lte, int),
+                          ("difficultyAvg", "minDifficulty", Key.gte, int),
+                          ("difficultyAvg", "maxDifficulty", Key.lte, int),
+                          ("name", "name", Key.eq, str)]
 
-        operator_dict = {"eg": lambda n, v: Key(n).eq(v),
-                         "lt": lambda n, v: Key(n).lt(v),
-                         "gt": lambda n, v: Key(n).gt(v),
-                         "lte": lambda n, v: Key(n).lte(v),
-                         "gte": lambda n, v: Key(n).gte(v)}
         expression_list = []
 
         for db_parameter_name, parameter_name, op, type_convert in parameter_list:
             value = request.GET.get(parameter_name)
             if value is not None:
-                expression_list.append(operator_dict[op](db_parameter_name, type_convert(value)))
+                expression_list.append(op(Key(db_parameter_name), type_convert(value)))
 
         dynamodb = boto3.resource('dynamodb')
         table = dynamodb.Table('Routes')
