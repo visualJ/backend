@@ -6,6 +6,12 @@ import boto3
 import hashlib
 from boto3.dynamodb.conditions import Key
 from rest_framework.decorators import api_view
+from decimal import Decimal
+
+
+def generate_id(data):
+    hash_id = int(hashlib.sha1((json.dumps(data).encode())).hexdigest(), 16)
+    return hash_id % 2 ** 31
 
 
 # Create your views here.
@@ -78,18 +84,45 @@ def routes(request):
 
 
 @api_view(['POST'])
+def add_story(request):
+    if request.method == 'POST':
+        data = request.body
+        route_id = request.GET.get('id')
+        story_data = json.loads(data)
+        story_id = generate_id(data)
+        # generate new unique story_id
+        story_data["id"] = story_id
+        story_data["point"] = [Decimal(str(story_data["point"][0])), Decimal(str(story_data["point"][1]))]
+
+        dynamodb = boto3.resource('dynamodb')
+        table = dynamodb.Table('Routes')
+
+        result = table.update_item(
+            Key={
+                'id': int(route_id)
+            },
+            UpdateExpression="SET stories = list_append(stories, :i)",
+            ExpressionAttributeValues={
+                ':i': [story_data],
+            },
+            ReturnValues="UPDATED_NEW"
+        )
+        response_dict = {"id": story_id}
+        return HttpResponse(json.dumps(response_dict), content_type="application/json")
+
+
+@api_view(['POST'])
 def add_rating(request):
     if request.method == 'POST':
         data = request.body
         route_id = request.GET.get('routeId')
         ratings_data = json.loads(data)
-        route_id = request.GET.get('routeId')
+        # generate new unique ratings_id
+        ratings_id = generate_id(data)
+        ratings_data["id"] = ratings_id
+
         dynamodb = boto3.resource('dynamodb')
         table = dynamodb.Table('Routes')
-        # generate new unique ratings_id
-        hash_id = int(hashlib.sha1((json.dumps(data).encode())).hexdigest(), 16)
-        ratings_id = hash_id % 2 ** 31
-        ratings_data["id"] = ratings_id
 
         result = table.update_item(
             Key={
