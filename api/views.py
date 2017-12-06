@@ -84,6 +84,34 @@ def routes(request):
 
 
 @api_view(['POST'])
+def add_poi(request):
+    if request.method == 'POST':
+        data = request.body
+        route_id = request.GET.get('id')
+        poi_data = json.loads(data)
+        poi_id = generate_id(data)
+        # generate new unique story_id
+        poi_data["id"] = poi_id
+        poi_data["location"] = [Decimal(str(poi_data["location"][0])), Decimal(str(poi_data["location"][1]))]
+
+        dynamodb = boto3.resource('dynamodb')
+        table = dynamodb.Table('Routes')
+
+        result = table.update_item(
+            Key={
+                'id': int(route_id)
+            },
+            UpdateExpression="SET pois = list_append(pois, :i)",
+            ExpressionAttributeValues={
+                ':i': [poi_data],
+            },
+            ReturnValues="UPDATED_NEW"
+        )
+        response_dict = {"id": poi_id}
+        return HttpResponse(json.dumps(response_dict), content_type="application/json")
+
+
+@api_view(['POST'])
 def add_story(request):
     if request.method == 'POST':
         data = request.body
