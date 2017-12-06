@@ -81,14 +81,15 @@ def routes(request):
 def add_rating(request):
     if request.method == 'POST':
         data = request.body
-        ratings_id = json.loads(data)
+        route_id = request.GET.get('routeId')
+        ratings_data = json.loads(data)
         route_id = request.GET.get('routeId')
         dynamodb = boto3.resource('dynamodb')
         table = dynamodb.Table('Routes')
         # generate new unique ratings_id
         hash_id = int(hashlib.sha1((json.dumps(data).encode())).hexdigest(), 16)
         ratings_id = hash_id % 2 ** 31
-        ratings_id["id"] = ratings_id
+        ratings_data["id"] = ratings_id
 
         result = table.update_item(
             Key={
@@ -96,7 +97,7 @@ def add_rating(request):
             },
             UpdateExpression="SET ratings = list_append(ratings, :i)",
             ExpressionAttributeValues={
-                ':i': [ratings_id],
+                ':i': [ratings_data],
             },
             ReturnValues="UPDATED_NEW"
         )
