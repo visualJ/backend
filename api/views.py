@@ -143,7 +143,7 @@ def add_story(request):
 def add_rating(request):
     if request.method == 'POST':
         data = request.body
-        route_id = request.GET.get('routeId')
+        route_id = request.GET.get('id')
         ratings_data = json.loads(data)
         # generate new unique ratings_id
         ratings_id = generate_id(data)
