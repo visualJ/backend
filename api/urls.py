@@ -10,4 +10,5 @@ urlpatterns = [
     url(r'^add-rating$', views.add_rating, name='add-rating'),
     url(r'^add-story$', views.add_story, name='add-story'),
     url(r'^add-poi$', views.add_poi, name='add-poi'),
+    url(r'^check-sponsoring$', views.check_sponsoring, name='check-sponsoring'),
 ]

@@ -5,8 +5,10 @@ import simplejson as json
 import boto3
 import hashlib
 from boto3.dynamodb.conditions import Key
+from math import sqrt
 from rest_framework.decorators import api_view
 from decimal import Decimal
+import geopy.distance
 
 
 def generate_id(data):
@@ -206,3 +208,45 @@ def route_detail(request):
         raise Http404()
     item = response["Item"]
     return HttpResponse(json.dumps(item), content_type="application/json")
+
+
+@api_view(['GET'])
+def check_sponsoring(request):
+    route_id = request.query_params.get('id')
+    x1 = request.query_params.get('x1')
+    x2 = request.query_params.get('x2')
+    y1 = request.query_params.get('y1')
+    y2 = request.query_params.get('y2')
+    p1 = (Decimal(x1), Decimal(y1))
+    p2 = (Decimal(x2), Decimal(y2))
+
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table('Routes')
+    route_data = table.get_item(
+        Key={
+            'id': int(route_id)
+        }
+    )["Item"]
+    print(route_data.keys())
+    route_points = route_data["points"]
+    start_end_point = None
+    last_point = None
+    distance = 0
+    for (px, py) in route_points:
+        if start_end_point:
+            if last_point:
+                distance += geopy.distance.vincenty(last_point, (px, py)).km
+            last_point = (px, py)
+        else:
+            if p1 == (px, py):
+                start_end_point = (p1, p2)
+            if p2 == (px, py):
+                start_end_point = (p2, p1)
+    price = distance * float(route_data["sponsorPricePerKm"])
+    response_dict = {
+        "distance": distance,
+        "price": price,
+        "start_point": start_end_point[0],
+        "end_point": start_end_point[1]
+    }
+    return HttpResponse(json.dumps(response_dict), content_type="application/json")
