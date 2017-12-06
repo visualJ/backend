@@ -237,6 +237,8 @@ def check_sponsoring(request):
             if last_point:
                 distance += geopy.distance.vincenty(last_point, (px, py)).km
             last_point = (px, py)
+            if last_point == p2:
+                break
         else:
             if p1 == (px, py):
                 start_end_point = (p1, p2)
