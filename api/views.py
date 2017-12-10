@@ -5,7 +5,6 @@ import simplejson as json
 import boto3
 import hashlib
 from boto3.dynamodb.conditions import Key
-from math import sqrt
 from rest_framework.decorators import api_view
 from decimal import Decimal
 import geopy.distance
@@ -210,6 +209,34 @@ def route_detail(request):
     return HttpResponse(json.dumps(item), content_type="application/json")
 
 
+def check_sponsorpart_collision(route_id, startpoint, endpoint, route_points):
+    # Get all existing sponsorparts from db for a route
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table('Routes')
+    route_data = table.get_item(
+        Key={
+            'id': int(route_id)
+        }
+    )
+    sponsor_parts = route_data["Item"]["sponsorParts"]
+    route_started = False
+    collision = False
+
+    for part in sponsor_parts:
+        for route_point in route_points:
+            if route_point == part["startPoint"]:
+                route_started = True
+            if route_started and (tuple(route_point) == startpoint or tuple(route_point) == endpoint):
+                collision = True
+                break
+            if route_point == part["endPoint"]:
+                break
+        route_started = False
+        if collision:
+            break
+    return collision
+
+
 @api_view(['GET'])
 def check_sponsoring(request):
     route_id = request.query_params.get('id')
@@ -236,19 +263,22 @@ def check_sponsoring(request):
         if start_end_point:
             if last_point:
                 distance += geopy.distance.vincenty(last_point, (px, py)).km
-            last_point = (px, py)
-            if last_point == p2:
+            if (px, py) == start_end_point[1]:
                 break
         else:
             if p1 == (px, py):
                 start_end_point = (p1, p2)
             if p2 == (px, py):
                 start_end_point = (p2, p1)
+        last_point = (px, py)
+
     price = distance * float(route_data["sponsorPricePerKm"])
+    collision = check_sponsorpart_collision(route_id, start_end_point[0], start_end_point[1], route_points)
     response_dict = {
         "distance": distance,
         "price": price,
         "start_point": start_end_point[0],
+        "collision": collision,
         "end_point": start_end_point[1]
     }
     return HttpResponse(json.dumps(response_dict), content_type="application/json")
