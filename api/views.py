@@ -193,20 +193,21 @@ def route_by_id(request, route_id):
 
 @api_view(['GET'])
 def route_detail(request):
-    dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table('Routes')
-    if 'id' not in request.GET:
-        return HttpResponseBadRequest("Missing id query parameter")
-    route_id = request.GET.get('id')
-    response = table.get_item(
-        Key={
-            'id': int(route_id)
-        }
-    )
-    if 'Item' not in response:
-        raise Http404()
-    item = response["Item"]
-    return HttpResponse(json.dumps(item), content_type="application/json")
+    if request.method == 'GET':
+        dynamodb = boto3.resource('dynamodb')
+        table = dynamodb.Table('Routes')
+        if 'id' not in request.GET:
+            return HttpResponseBadRequest("Missing id query parameter")
+        route_id = request.GET.get('id')
+        response = table.get_item(
+            Key={
+                'id': int(route_id)
+            }
+        )
+        if 'Item' not in response:
+            raise Http404()
+        item = response["Item"]
+        return HttpResponse(json.dumps(item), content_type="application/json")
 
 
 def check_sponsorpart_collision(route_id, startpoint, endpoint, route_points):
@@ -237,48 +238,93 @@ def check_sponsorpart_collision(route_id, startpoint, endpoint, route_points):
     return collision
 
 
+@api_view(['POST'])
+def add_sponsor_part(request):
+    if request.method == 'POST':
+        data = request.body
+        route_id = request.query_params.get('id')
+        sponsor_part_data = json.loads(data)
+        # generate new unique ratings_id
+        sponsor_part_id = generate_id(data)
+        sponsor_part_data["id"] = sponsor_part_id
+        sponsor_part_data["startPoint"] = [Decimal(str(sponsor_part_data["startPoint"][0])),
+                                           Decimal(str(sponsor_part_data["startPoint"][1]))]
+        sponsor_part_data["endPoint"] = [Decimal(str(sponsor_part_data["endPoint"][0])),
+                                         Decimal(str(sponsor_part_data["endPoint"][1]))]
+
+        dynamodb = boto3.resource('dynamodb')
+        table = dynamodb.Table('Routes')
+        # get the points of the route
+        route_data = table.get_item(
+            Key={
+                'id': int(route_id)
+            }
+        )["Item"]
+        route_points = route_data["points"]
+        collison = check_sponsorpart_collision(route_id, tuple(sponsor_part_data["startPoint"]),
+                                               tuple(sponsor_part_data["endPoint"]), route_points)
+        print(collison)
+        if collison:
+            response_dict = {"Success:": False}
+        else:
+            # add sponsor_part to the route
+            result = table.update_item(
+                Key={
+                    'id': int(route_id)
+                },
+                UpdateExpression="SET sponsorParts = list_append(sponsorParts, :i)",
+                ExpressionAttributeValues={
+                    ':i': [sponsor_part_data],
+                },
+                ReturnValues="UPDATED_NEW"
+            )
+            response_dict = {"id": sponsor_part_id}
+
+        return HttpResponse(json.dumps(response_dict), content_type="application/json")
+
+
 @api_view(['GET'])
 def check_sponsoring(request):
-    route_id = request.query_params.get('id')
-    x1 = request.query_params.get('x1')
-    x2 = request.query_params.get('x2')
-    y1 = request.query_params.get('y1')
-    y2 = request.query_params.get('y2')
-    p1 = (Decimal(x1), Decimal(y1))
-    p2 = (Decimal(x2), Decimal(y2))
+    if request.method == 'GET':
+        route_id = request.query_params.get('id')
+        x1 = request.query_params.get('x1')
+        x2 = request.query_params.get('x2')
+        y1 = request.query_params.get('y1')
+        y2 = request.query_params.get('y2')
+        p1 = (Decimal(x1), Decimal(y1))
+        p2 = (Decimal(x2), Decimal(y2))
 
-    dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table('Routes')
-    route_data = table.get_item(
-        Key={
-            'id': int(route_id)
+        dynamodb = boto3.resource('dynamodb')
+        table = dynamodb.Table('Routes')
+        route_data = table.get_item(
+            Key={
+                'id': int(route_id)
+            }
+        )["Item"]
+        route_points = route_data["points"]
+        start_end_point = None
+        last_point = None
+        distance = 0
+        for (px, py) in route_points:
+            if start_end_point:
+                if last_point:
+                    distance += geopy.distance.vincenty(last_point, (px, py)).km
+                if (px, py) == start_end_point[1]:
+                    break
+            else:
+                if p1 == (px, py):
+                    start_end_point = (p1, p2)
+                if p2 == (px, py):
+                    start_end_point = (p2, p1)
+            last_point = (px, py)
+
+        price = distance * float(route_data["sponsorPricePerKm"])
+        collision = check_sponsorpart_collision(route_id, start_end_point[0], start_end_point[1], route_points)
+        response_dict = {
+            "distance": distance,
+            "price": price,
+            "start_point": start_end_point[0],
+            "collision": collision,
+            "end_point": start_end_point[1]
         }
-    )["Item"]
-    print(route_data.keys())
-    route_points = route_data["points"]
-    start_end_point = None
-    last_point = None
-    distance = 0
-    for (px, py) in route_points:
-        if start_end_point:
-            if last_point:
-                distance += geopy.distance.vincenty(last_point, (px, py)).km
-            if (px, py) == start_end_point[1]:
-                break
-        else:
-            if p1 == (px, py):
-                start_end_point = (p1, p2)
-            if p2 == (px, py):
-                start_end_point = (p2, p1)
-        last_point = (px, py)
-
-    price = distance * float(route_data["sponsorPricePerKm"])
-    collision = check_sponsorpart_collision(route_id, start_end_point[0], start_end_point[1], route_points)
-    response_dict = {
-        "distance": distance,
-        "price": price,
-        "start_point": start_end_point[0],
-        "collision": collision,
-        "end_point": start_end_point[1]
-    }
-    return HttpResponse(json.dumps(response_dict), content_type="application/json")
+        return HttpResponse(json.dumps(response_dict), content_type="application/json")
