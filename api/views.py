@@ -33,7 +33,7 @@ def media(request):
         print(media_file.name)
         media_id = str(randint(0, 9223372036854775807)) + media_file.name
         s3.put_object(Bucket="cc1-media", Key=media_id, Body=media_file.read())
-        response_dict = {"Success": True, "id": media_id, "Content-Type": media_file.content_type}
+        response_dict = {"Success": True, "id": media_id}
         return HttpResponse(json.dumps(response_dict), content_type="application/json")
 
 
@@ -263,7 +263,6 @@ def add_sponsor_part(request):
         route_points = route_data["points"]
         collison = check_sponsorpart_collision(route_id, tuple(sponsor_part_data["startPoint"]),
                                                tuple(sponsor_part_data["endPoint"]), route_points)
-        print(collison)
         if collison:
             response_dict = {"Success:": False}
         else:
