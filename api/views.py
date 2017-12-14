@@ -322,8 +322,8 @@ def check_sponsoring(request):
         response_dict = {
             "distance": distance,
             "price": price,
-            "start_point": start_end_point[0],
+            "startPoint": start_end_point[0],
             "collision": collision,
-            "end_point": start_end_point[1]
+            "endPoint": start_end_point[1]
         }
         return HttpResponse(json.dumps(response_dict), content_type="application/json")
