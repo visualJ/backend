@@ -12,4 +12,6 @@ urlpatterns = [
     url(r'^add-poi$', views.add_poi, name='add-poi'),
     url(r'^check-sponsoring$', views.check_sponsoring, name='check-sponsoring'),
     url(r'^add-sponsor-part$', views.add_sponsor_part, name='add-sponsor-part'),
+    url(r'^sponsors$', views.sponsors, name='sponsors'),
+    url(r'^organization$', views.organization, name='organization'),
 ]

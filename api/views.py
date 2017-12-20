@@ -20,6 +20,26 @@ def test(request):
     return HttpResponse("{\"message\":\"test\"}", content_type="application/json")
 
 
+@api_view(['GET'])
+def sponsors(request):
+    if request.method == 'GET':
+        dynamodb = boto3.resource('dynamodb')
+        table = dynamodb.Table('Sponsors')
+        response = table.scan(Select='ALL_ATTRIBUTES')
+        json_data = json.dumps(response["Items"])
+        return HttpResponse(json_data, content_type="application/json")
+
+
+@api_view(['GET'])
+def organization(request):
+    if request.method == 'GET':
+        dynamodb = boto3.resource('dynamodb')
+        table = dynamodb.Table('Organization')
+        response = table.scan(Select='ALL_ATTRIBUTES')
+        json_data = json.dumps(response["Items"])
+        return HttpResponse(json_data, content_type="application/json")
+
+
 @api_view(['GET', 'POST'])
 def media(request):
     s3 = boto3.client('s3')
