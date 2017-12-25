@@ -53,7 +53,7 @@ def media(request):
         print(media_file.name)
         media_id = str(randint(0, 9223372036854775807)) + media_file.name
         s3.put_object(Bucket="cc1-media", Key=media_id, Body=media_file.read())
-        response_dict = {"Success": True, "id": media_id}
+        response_dict = {"Success": True, "id": media_id, "type": media_file.content_type}
         return HttpResponse(json.dumps(response_dict), content_type="application/json")
 
 
