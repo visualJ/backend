@@ -260,6 +260,7 @@ def check_sponsorpart_collision(route_id, startpoint, endpoint, route_points):
 
 @api_view(['POST'])
 def add_sponsor_part(request):
+    # change add sponsorpart
     if request.method == 'POST':
         data = request.body
         route_id = request.query_params.get('id')
@@ -271,8 +272,8 @@ def add_sponsor_part(request):
                                            Decimal(str(sponsor_part_data["startPoint"][1]))]
         sponsor_part_data["endPoint"] = [Decimal(str(sponsor_part_data["endPoint"][0])),
                                          Decimal(str(sponsor_part_data["endPoint"][1]))]
-        start_point = sponsor_part_data["startPoint"]
-        end_point = sponsor_part_data["endPoint"]
+        p1 = sponsor_part_data["startPoint"]
+        p2 = sponsor_part_data["endPoint"]
 
         dynamodb = boto3.resource('dynamodb')
         table = dynamodb.Table('Routes')
@@ -283,28 +284,37 @@ def add_sponsor_part(request):
             }
         )["Item"]
         route_points = route_data["points"]
-        collison = check_sponsorpart_collision(route_id, tuple(start_point), tuple(end_point), route_points)
-        if collison:
+        start_end_point = None
+        last_point = None
+        distance = 0
+
+        for (px, py) in route_points:
+            if start_end_point:
+                if last_point:
+                    distance += geopy.distance.vincenty(last_point, (px, py)).km
+                if (px, py) == tuple(start_end_point[1]):
+                    break
+            else:
+                if tuple(p1) == (px, py):
+                    start_end_point = (p1, p2)
+                if tuple(p2) == (px, py):
+                    start_end_point = (p2, p1)
+            last_point = (px, py)
+        collision = check_sponsorpart_collision(route_id, tuple(start_end_point[0]), tuple(start_end_point[1]), route_points)
+        print(collision)
+
+        sponsor_part_data["startPoint"] = start_end_point[0]
+        sponsor_part_data["endPoint"] = start_end_point[1]
+
+        if collision:
             response_dict = {"Success:": False}
         else:
-            # calc distance
-            part_started = False
-            distance = 0
-            last_point = None
-            for point in route_points:
-                if part_started and last_point:
-                    distance += geopy.distance.vincenty(last_point, point).km
-                if point == end_point:
-                    break
-                elif point == start_point:
-                    part_started = True
-                last_point = point
-
             # calc price
             price = distance * float(route_data["sponsorPricePerKm"])
             # add sponsor_part to the route
             sponsor_part_data["distance"] = Decimal(str(distance))
             sponsor_part_data["price"] = Decimal(str(price))
+
             result = table.update_item(
                 Key={
                     'id': int(route_id)
